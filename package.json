@@ -2,8 +2,10 @@
   "name": "proyek-cashierhub-backend",
   "version": "1.0.0",
   "description": "KELOMPOK GPT PRO:\r 1. Alfiyana Fadillah Ashary (241401024)\r 2. EL FAHREZA SUFI (241401042)\r 3. Cristoval Pratama Siahaan (241401057)",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
