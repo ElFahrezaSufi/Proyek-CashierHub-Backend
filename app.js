@@ -71,7 +71,7 @@ app.put("/api/users/:id", async (req, res) => {
   const { name, email, phone, address, profile_picture } = req.body;
   try {
     const query = `
-      UPDATE users SET name = $1, email = $2, phone = $3, address = $4, profile_picture = COALESCE($5, profile_picture)
+      UPDATE users SET name = $1, email = $2, phone = $3, address = $4, profile_picture = COALESCE($5, profile_picture), created_at = created_at, role = role, updated_at = CURRENT_TIMESTAMP
       WHERE id = $6 RETURNING *`;
     const result = await pool.query(query, [
       name,
@@ -130,7 +130,7 @@ app.put("/api/products/:id", async (req, res) => {
   const { name, type, code, stock, price } = req.body;
   try {
     const query = `
-      UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5 
+      UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
       WHERE id = $6 RETURNING *`;
     const result = await pool.query(query, [
       name,
@@ -187,7 +187,7 @@ app.post("/api/transactions", async (req, res) => {
         item.price,
         item.price * item.quantity,
       ]);
-      const stockQuery = `UPDATE products SET stock = stock - $1 WHERE id = $2`;
+      const stockQuery = `UPDATE products SET stock = stock - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`;
       await client.query(stockQuery, [item.quantity, item.id]);
     }
     await client.query("COMMIT");
