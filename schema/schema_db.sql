@@ -19,6 +19,10 @@ CREATE TABLE users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Menambahkan kolom updated_at pada tabel users
+ALTER TABLE users 
+ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
 -- 2. TABEL PRODUCTS (Barang)
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
