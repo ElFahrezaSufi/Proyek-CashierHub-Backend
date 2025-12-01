@@ -124,6 +124,17 @@ const cashierController = {
       res.status(500).json({ error: err.message });
     }
   },
+
+  async getTransactionById(req, res) {
+    try {
+      const transaction = await cashierService.getTransactionById(
+        req.params.id
+      );
+      res.json(transaction);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
 };
 
 module.exports = cashierController;

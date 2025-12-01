@@ -20,5 +20,6 @@ router.delete("/products/:id", cashierController.deleteProduct);
 // Transaction Routes
 router.post("/transactions", cashierController.createTransaction);
 router.get("/transactions", cashierController.getAllTransactions);
+router.get("/transactions/:id", cashierController.getTransactionById);
 
 module.exports = router;

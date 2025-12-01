@@ -60,23 +60,42 @@ const cashierService = {
   async createUser(userData) {
     const { username, password, name, email, phone, address, role } = userData;
 
-    // Hash password sebelum disimpan
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    try {
+      // Hash password sebelum disimpan
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const query = `
-      INSERT INTO users (username, password, name, email, phone, address, role) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-    const result = await pool.query(query, [
-      username,
-      hashedPassword, // Simpan password yang sudah di-hash
-      name,
-      email,
-      phone,
-      address,
-      role,
-    ]);
-    return result.rows[0];
+      const query = `
+        INSERT INTO users (username, password, name, email, phone, address, role) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+      const result = await pool.query(query, [
+        username,
+        hashedPassword, // Simpan password yang sudah di-hash
+        name,
+        email,
+        phone,
+        address,
+        role,
+      ]);
+      return result.rows[0];
+    } catch (error) {
+      console.error("=== CREATE USER ERROR ===");
+      console.error("Error Code:", error.code);
+      console.error("Error Message:", error.message);
+      console.error("Error Detail:", error.detail);
+
+      // Handle specific PostgreSQL errors
+      if (error.code === "23505") {
+        // Unique constraint violation
+        if (error.detail.includes("username")) {
+          throw new Error("Username sudah digunakan");
+        } else if (error.detail.includes("email")) {
+          throw new Error("Email sudah digunakan");
+        }
+      }
+
+      throw new Error(`Gagal menambah karyawan: ${error.message}`);
+    }
   },
 
   async updateUser(id, userData) {
@@ -133,10 +152,14 @@ const cashierService = {
       console.log("Password akan diupdate (hashed)");
     }
 
-    // Update profile_picture if provided
-    if (profile_picture) {
+    // Update profile_picture (always update, including null to delete)
+    if (profile_picture !== undefined) {
       fields.push(`profile_picture = $${paramIndex++}`);
       values.push(profile_picture);
+      console.log(
+        "Profile picture akan diupdate:",
+        profile_picture ? "Ada foto" : "Dihapus (null)"
+      );
     }
 
     // Always update timestamp
@@ -205,15 +228,16 @@ const cashierService = {
 
   // ================== TRANSACTIONS ==================
   async createTransaction(transactionData) {
-    const { user_id, total_price, items } = transactionData;
+    const { user_id, total_price, cash_amount, change_amount, items } =
+      transactionData;
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
 
-      // Calculate totals
+      // Use values from frontend
       const total_amount = total_price;
-      const cash_amount = total_price; // Adjust if you pass cash from frontend
-      const change_amount = 0;
+      const cash = cash_amount || total_price;
+      const change = change_amount || 0;
 
       const transQuery = `
         INSERT INTO transactions (user_id, total_amount, cash_amount, change_amount)
@@ -221,8 +245,8 @@ const cashierService = {
       const transResult = await client.query(transQuery, [
         user_id,
         total_amount,
-        cash_amount,
-        change_amount,
+        cash,
+        change,
       ]);
       const transactionId = transResult.rows[0].id;
 
@@ -256,12 +280,43 @@ const cashierService = {
 
   async getAllTransactions() {
     const query = `
-      SELECT t.id, t.transaction_date, u.name as kasir_name, t.total_amount 
+      SELECT t.id, t.transaction_date, t.user_id, u.name as kasir_name, t.total_amount 
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
       ORDER BY t.transaction_date DESC`;
     const result = await pool.query(query);
     return result.rows;
+  },
+
+  async getTransactionById(id) {
+    // Get transaction header
+    const transQuery = `
+      SELECT t.id, t.transaction_date, t.total_amount, t.cash_amount, t.change_amount,
+             u.name as kasir_name, u.username as kasir_username
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE t.id = $1`;
+    const transResult = await pool.query(transQuery, [id]);
+
+    if (transResult.rows.length === 0) {
+      throw new Error("Transaksi tidak ditemukan");
+    }
+
+    const transaction = transResult.rows[0];
+
+    // Get transaction items
+    const itemsQuery = `
+      SELECT ti.quantity, ti.price_at_transaction, ti.subtotal,
+             p.name as product_name, p.code as product_code, p.type as product_type
+      FROM transaction_items ti
+      LEFT JOIN products p ON ti.product_id = p.id
+      WHERE ti.transaction_id = $1`;
+    const itemsResult = await pool.query(itemsQuery, [id]);
+
+    return {
+      ...transaction,
+      items: itemsResult.rows,
+    };
   },
 };
 
