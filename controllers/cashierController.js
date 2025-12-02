@@ -105,6 +105,25 @@ const cashierController = {
     }
   },
 
+  // ================== STATS ==================
+  async getProductStats(req, res) {
+    try {
+      const stats = await cashierService.getProductStats();
+      res.json(stats);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  async getEmployeeStats(req, res) {
+    try {
+      const stats = await cashierService.getEmployeeStats();
+      res.json(stats);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
   // ================== TRANSACTIONS ==================
   async createTransaction(req, res) {
     try {

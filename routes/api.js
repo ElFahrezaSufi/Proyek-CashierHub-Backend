@@ -7,12 +7,14 @@ router.post("/login", cashierController.login);
 
 // User Routes
 router.get("/users", cashierController.getAllUsers);
+router.get("/users/stats", cashierController.getEmployeeStats);
 router.post("/users", cashierController.createUser);
 router.put("/users/:id", cashierController.updateUser);
 router.delete("/users/:id", cashierController.deleteUser);
 
 // Product Routes
 router.get("/products", cashierController.getAllProducts);
+router.get("/products/stats", cashierController.getProductStats);
 router.post("/products", cashierController.createProduct);
 router.put("/products/:id", cashierController.updateProduct);
 router.delete("/products/:id", cashierController.deleteProduct);

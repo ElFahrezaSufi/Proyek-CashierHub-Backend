@@ -226,6 +226,60 @@ const cashierService = {
     return { success: true, message: "Produk berhasil dihapus" };
   },
 
+  // ================== STATS ==================
+  async getProductStats() {
+    // Low Stock
+    const lowStockQuery =
+      "SELECT * FROM products WHERE stock <= 20 ORDER BY stock ASC LIMIT 50";
+    const lowStockResult = await pool.query(lowStockQuery);
+    console.log("Low Stock Query Result:", lowStockResult.rows); // DEBUG LOG
+
+    // Best Selling
+    const bestSellingQuery = `
+      SELECT p.id, p.name, p.code, p.price, p.stock, SUM(ti.quantity) as total_sold
+      FROM transaction_items ti
+      JOIN products p ON ti.product_id = p.id
+      GROUP BY p.id, p.name, p.code, p.price, p.stock
+      ORDER BY total_sold DESC
+      LIMIT 5
+    `;
+    const bestSellingResult = await pool.query(bestSellingQuery);
+
+    // Newest
+    const newestQuery =
+      "SELECT * FROM products ORDER BY created_at DESC LIMIT 5";
+    const newestResult = await pool.query(newestQuery);
+
+    return {
+      lowStock: lowStockResult.rows,
+      bestSelling: bestSellingResult.rows,
+      newest: newestResult.rows,
+    };
+  },
+
+  async getEmployeeStats() {
+    // Count by Role
+    const roleCountQuery =
+      "SELECT role, COUNT(*) as count FROM users GROUP BY role";
+    const roleCountResult = await pool.query(roleCountQuery);
+
+    // Most Active (Sales Count)
+    const mostActiveQuery = `
+      SELECT u.id, u.name, u.role, u.profile_picture, COUNT(t.id) as total_transactions
+      FROM transactions t
+      JOIN users u ON t.user_id = u.id
+      GROUP BY u.id, u.name, u.role, u.profile_picture
+      ORDER BY total_transactions DESC
+      LIMIT 5
+    `;
+    const mostActiveResult = await pool.query(mostActiveQuery);
+
+    return {
+      roleCounts: roleCountResult.rows,
+      mostActive: mostActiveResult.rows,
+    };
+  },
+
   // ================== TRANSACTIONS ==================
   async createTransaction(transactionData) {
     const { user_id, total_price, cash_amount, change_amount, items } =

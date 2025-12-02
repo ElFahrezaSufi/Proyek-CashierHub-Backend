@@ -23,7 +23,7 @@ const loginLimiter = rateLimit({
 // Security: General rate limiter untuk semua endpoint
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 menit
-  max: 100, // Maksimal 100 request per menit
+  max: 300, // Maksimal 300 request per menit
   message: { error: "Terlalu banyak request. Coba lagi nanti." },
 });
 
