@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS users;
 
--- 1. TABEL USERS (Kasir & Admin)
+-- 1. TABEL USERS (Kasir & Admin & Super Admin)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE users (
     phone VARCHAR(20),
     address TEXT,
     profile_picture TEXT, 
-    role VARCHAR(20) NOT NULL DEFAULT 'Kasir' CHECK (role IN ('Admin', 'Kasir')),
+    role VARCHAR(20) NOT NULL DEFAULT 'Kasir' CHECK (role IN ('Super Admin', 'Admin', 'Kasir')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -59,6 +59,7 @@ CREATE TABLE transaction_items (
 
 -- Data User
 INSERT INTO users (username, password, name, email, phone, address, role, profile_picture) VALUES 
+('superadmin', 'super123', 'Super Administrator', 'superadmin@cashierhub.com', '08111111111', 'Kantor Pusat - HQ', 'Super Admin', NULL),
 ('admin', 'admin123', 'Administrator', 'admin@cashierhub.com', '08123456789', 'Kantor Pusat', 'Admin', NULL),
 ('ahmad', 'ahmad123', 'Ahmad Fadli', 'ahmad@cashierhub.com', '081234567890', 'Jl. Merdeka No. 123, Jakarta', 'Kasir', NULL),
 ('siti', 'siti123', 'Siti Nurhaliza', 'siti@cashierhub.com', '082345678901', 'Jl. Sudirman No. 45, Bandung', 'Kasir', NULL),

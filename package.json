@@ -2,10 +2,10 @@
   "name": "proyek-cashierhub-backend",
   "version": "1.0.0",
   "description": "KELOMPOK GPT PRO:\r 1. Alfiyana Fadillah Ashary (241401024)\r 2. EL FAHREZA SUFI (241401042)\r 3. Cristoval Pratama Siahaan (241401057)",
-  "main": "app.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -21,9 +21,14 @@
   },
   "homepage": "https://github.com/ElFahrezaSufi/Proyek-CashierHub-Backend#readme",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "nodemon": "^3.1.11",
     "pg": "^8.16.3"
   }
