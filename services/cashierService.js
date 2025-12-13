@@ -198,27 +198,63 @@ const cashierService = {
 
   async createProduct(productData) {
     const { name, type, code, stock, price } = productData;
-    const query = `
-      INSERT INTO products (name, type, code, stock, price) 
-      VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-    const result = await pool.query(query, [name, type, code, stock, price]);
-    return result.rows[0];
+
+    try {
+      const query = `
+        INSERT INTO products (name, type, code, stock, price) 
+        VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+      const result = await pool.query(query, [name, type, code, stock, price]);
+      return result.rows[0];
+    } catch (error) {
+      console.error("=== CREATE PRODUCT ERROR ===");
+      console.error("Error Code:", error.code);
+      console.error("Error Message:", error.message);
+      console.error("Error Detail:", error.detail);
+
+      // Handle specific PostgreSQL errors
+      if (error.code === "23505") {
+        // Unique constraint violation
+        if (error.detail && error.detail.includes("code")) {
+          throw new Error("Kode barang sudah ada!");
+        }
+      }
+
+      throw new Error(`Gagal menambah produk: ${error.message}`);
+    }
   },
 
   async updateProduct(id, productData) {
     const { name, type, code, stock, price } = productData;
-    const query = `
-      UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $6 RETURNING *`;
-    const result = await pool.query(query, [
-      name,
-      type,
-      code,
-      stock,
-      price,
-      id,
-    ]);
-    return result.rows[0];
+
+    try {
+      const query = `
+        UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $6 RETURNING *`;
+      const result = await pool.query(query, [
+        name,
+        type,
+        code,
+        stock,
+        price,
+        id,
+      ]);
+      return result.rows[0];
+    } catch (error) {
+      console.error("=== UPDATE PRODUCT ERROR ===");
+      console.error("Error Code:", error.code);
+      console.error("Error Message:", error.message);
+      console.error("Error Detail:", error.detail);
+
+      // Handle specific PostgreSQL errors
+      if (error.code === "23505") {
+        // Unique constraint violation
+        if (error.detail && error.detail.includes("code")) {
+          throw new Error("Kode barang sudah ada!");
+        }
+      }
+
+      throw new Error(`Gagal mengupdate produk: ${error.message}`);
+    }
   },
 
   async deleteProduct(id) {
