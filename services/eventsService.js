@@ -104,27 +104,73 @@ const eventsService = {
 
   async createProduct(productData) {
     const { name, type, code, stock, price } = productData;
+
+    // Cari atau buat kategori
+    let categoryId;
+    const checkCategoryQuery = "SELECT id FROM categories WHERE name = $1";
+    const checkResult = await pool.query(checkCategoryQuery, [type]);
+
+    if (checkResult.rows.length > 0) {
+      categoryId = checkResult.rows[0].id;
+    } else {
+      const insertCategoryQuery =
+        "INSERT INTO categories (name) VALUES ($1) RETURNING id";
+      const insertResult = await pool.query(insertCategoryQuery, [type]);
+      categoryId = insertResult.rows[0].id;
+    }
+
     const query = `
-      INSERT INTO products (name, type, code, stock, price) 
+      INSERT INTO products (name, category_id, code, stock, price) 
       VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-    const result = await pool.query(query, [name, type, code, stock, price]);
-    return result.rows[0];
+    const result = await pool.query(query, [
+      name,
+      categoryId,
+      code,
+      stock,
+      price,
+    ]);
+
+    const productWithCategory = await pool.query(
+      "SELECT p.*, c.name as type FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1",
+      [result.rows[0].id]
+    );
+    return productWithCategory.rows[0];
   },
 
   async updateProduct(id, productData) {
     const { name, type, code, stock, price } = productData;
+
+    // Cari atau buat kategori
+    let categoryId;
+    const checkCategoryQuery = "SELECT id FROM categories WHERE name = $1";
+    const checkResult = await pool.query(checkCategoryQuery, [type]);
+
+    if (checkResult.rows.length > 0) {
+      categoryId = checkResult.rows[0].id;
+    } else {
+      const insertCategoryQuery =
+        "INSERT INTO categories (name) VALUES ($1) RETURNING id";
+      const insertResult = await pool.query(insertCategoryQuery, [type]);
+      categoryId = insertResult.rows[0].id;
+    }
+
     const query = `
-      UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
+      UPDATE products SET name = $1, category_id = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
       WHERE id = $6 RETURNING *`;
     const result = await pool.query(query, [
       name,
-      type,
+      categoryId,
       code,
       stock,
       price,
       id,
     ]);
-    return result.rows[0];
+
+    const productWithCategory = await pool.query(
+      "SELECT p.*, c.name as type FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1",
+      [id]
+    );
+    return productWithCategory.rows[0];
   },
 
   async deleteProduct(id) {
@@ -134,32 +180,29 @@ const eventsService = {
 
   // ================== TRANSACTIONS ==================
   async createTransaction(transactionData) {
-    const { user_id, total_amount, cash_amount, change_amount, items } =
-      transactionData;
+    const { user_id, total_amount, cash_amount, items } = transactionData;
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       const transQuery = `
-        INSERT INTO transactions (user_id, total_amount, cash_amount, change_amount)
-        VALUES ($1, $2, $3, $4) RETURNING id`;
+        INSERT INTO transactions (user_id, total_amount, cash_amount)
+        VALUES ($1, $2, $3) RETURNING id`;
       const transResult = await client.query(transQuery, [
         user_id,
         total_amount,
         cash_amount,
-        change_amount,
       ]);
       const transactionId = transResult.rows[0].id;
 
       for (const item of items) {
         const itemQuery = `
-          INSERT INTO transaction_items (transaction_id, product_id, quantity, price_at_transaction, subtotal)
-          VALUES ($1, $2, $3, $4, $5)`;
+          INSERT INTO transaction_items (transaction_id, product_id, quantity, price_at_transaction)
+          VALUES ($1, $2, $3, $4)`;
         await client.query(itemQuery, [
           transactionId,
           item.id,
           item.quantity,
           item.price,
-          item.price * item.quantity,
         ]);
         const stockQuery = `UPDATE products SET stock = stock - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`;
         await client.query(stockQuery, [item.quantity, item.id]);

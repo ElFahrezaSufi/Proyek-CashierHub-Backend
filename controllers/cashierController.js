@@ -65,6 +65,16 @@ const cashierController = {
     }
   },
 
+  // ================== CATEGORIES ==================
+  async getAllCategories(req, res) {
+    try {
+      const categories = await cashierService.getAllCategories();
+      res.json(categories);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
   // ================== PRODUCTS ==================
   async getAllProducts(req, res) {
     try {
