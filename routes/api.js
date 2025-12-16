@@ -12,6 +12,9 @@ router.post("/users", cashierController.createUser);
 router.put("/users/:id", cashierController.updateUser);
 router.delete("/users/:id", cashierController.deleteUser);
 
+// Category Routes
+router.get("/categories", cashierController.getAllCategories);
+
 // Product Routes
 router.get("/products", cashierController.getAllProducts);
 router.get("/products/stats", cashierController.getProductStats);

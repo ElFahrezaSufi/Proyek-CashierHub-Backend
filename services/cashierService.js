@@ -190,35 +190,134 @@ const cashierService = {
     return { success: true, message: "User berhasil dihapus" };
   },
 
+  // ================== CATEGORIES ==================
+  async getAllCategories() {
+    const result = await pool.query(
+      "SELECT id, name FROM categories ORDER BY name ASC"
+    );
+    return result.rows;
+  },
+
   // ================== PRODUCTS ==================
   async getAllProducts() {
-    const result = await pool.query("SELECT * FROM products ORDER BY id ASC");
+    const query = `
+      SELECT p.id, p.code, p.name, p.stock, p.price, p.created_at, p.updated_at,
+             c.name as type, c.id as category_id
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.id ASC
+    `;
+    const result = await pool.query(query);
     return result.rows;
   },
 
   async createProduct(productData) {
     const { name, type, code, stock, price } = productData;
-    const query = `
-      INSERT INTO products (name, type, code, stock, price) 
-      VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-    const result = await pool.query(query, [name, type, code, stock, price]);
-    return result.rows[0];
+
+    try {
+      // Cari atau buat kategori
+      let categoryId;
+      const checkCategoryQuery = "SELECT id FROM categories WHERE name = $1";
+      const checkResult = await pool.query(checkCategoryQuery, [type]);
+
+      if (checkResult.rows.length > 0) {
+        categoryId = checkResult.rows[0].id;
+      } else {
+        // Buat kategori baru jika belum ada
+        const insertCategoryQuery =
+          "INSERT INTO categories (name) VALUES ($1) RETURNING id";
+        const insertResult = await pool.query(insertCategoryQuery, [type]);
+        categoryId = insertResult.rows[0].id;
+      }
+
+      const query = `
+        INSERT INTO products (name, category_id, code, stock, price) 
+        VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+      const result = await pool.query(query, [
+        name,
+        categoryId,
+        code,
+        stock,
+        price,
+      ]);
+
+      // Get product with category name
+      const productWithCategory = await pool.query(
+        "SELECT p.*, c.name as type FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1",
+        [result.rows[0].id]
+      );
+      return productWithCategory.rows[0];
+    } catch (error) {
+      console.error("=== CREATE PRODUCT ERROR ===");
+      console.error("Error Code:", error.code);
+      console.error("Error Message:", error.message);
+      console.error("Error Detail:", error.detail);
+
+      // Handle specific PostgreSQL errors
+      if (error.code === "23505") {
+        // Unique constraint violation
+        if (error.detail && error.detail.includes("code")) {
+          throw new Error("Kode barang sudah ada!");
+        }
+      }
+
+      throw new Error(`Gagal menambah produk: ${error.message}`);
+    }
   },
 
   async updateProduct(id, productData) {
     const { name, type, code, stock, price } = productData;
-    const query = `
-      UPDATE products SET name = $1, type = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $6 RETURNING *`;
-    const result = await pool.query(query, [
-      name,
-      type,
-      code,
-      stock,
-      price,
-      id,
-    ]);
-    return result.rows[0];
+
+    try {
+      // Cari atau buat kategori
+      let categoryId;
+      const checkCategoryQuery = "SELECT id FROM categories WHERE name = $1";
+      const checkResult = await pool.query(checkCategoryQuery, [type]);
+
+      if (checkResult.rows.length > 0) {
+        categoryId = checkResult.rows[0].id;
+      } else {
+        // Buat kategori baru jika belum ada
+        const insertCategoryQuery =
+          "INSERT INTO categories (name) VALUES ($1) RETURNING id";
+        const insertResult = await pool.query(insertCategoryQuery, [type]);
+        categoryId = insertResult.rows[0].id;
+      }
+
+      const query = `
+        UPDATE products SET name = $1, category_id = $2, code = $3, stock = $4, price = $5, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $6 RETURNING *`;
+      const result = await pool.query(query, [
+        name,
+        categoryId,
+        code,
+        stock,
+        price,
+        id,
+      ]);
+
+      // Get product with category name
+      const productWithCategory = await pool.query(
+        "SELECT p.*, c.name as type FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = $1",
+        [id]
+      );
+      return productWithCategory.rows[0];
+    } catch (error) {
+      console.error("=== UPDATE PRODUCT ERROR ===");
+      console.error("Error Code:", error.code);
+      console.error("Error Message:", error.message);
+      console.error("Error Detail:", error.detail);
+
+      // Handle specific PostgreSQL errors
+      if (error.code === "23505") {
+        // Unique constraint violation
+        if (error.detail && error.detail.includes("code")) {
+          throw new Error("Kode barang sudah ada!");
+        }
+      }
+
+      throw new Error(`Gagal mengupdate produk: ${error.message}`);
+    }
   },
 
   async deleteProduct(id) {
@@ -282,8 +381,7 @@ const cashierService = {
 
   // ================== TRANSACTIONS ==================
   async createTransaction(transactionData) {
-    const { user_id, total_price, cash_amount, change_amount, items } =
-      transactionData;
+    const { user_id, total_price, cash_amount, items } = transactionData;
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -291,29 +389,26 @@ const cashierService = {
       // Use values from frontend
       const total_amount = total_price;
       const cash = cash_amount || total_price;
-      const change = change_amount || 0;
 
       const transQuery = `
-        INSERT INTO transactions (user_id, total_amount, cash_amount, change_amount)
-        VALUES ($1, $2, $3, $4) RETURNING id`;
+        INSERT INTO transactions (user_id, total_amount, cash_amount)
+        VALUES ($1, $2, $3) RETURNING id`;
       const transResult = await client.query(transQuery, [
         user_id,
         total_amount,
         cash,
-        change,
       ]);
       const transactionId = transResult.rows[0].id;
 
       for (const item of items) {
         const itemQuery = `
-          INSERT INTO transaction_items (transaction_id, product_id, quantity, price_at_transaction, subtotal)
-          VALUES ($1, $2, $3, $4, $5)`;
+          INSERT INTO transaction_items (transaction_id, product_id, quantity, price_at_transaction)
+          VALUES ($1, $2, $3, $4)`;
         await client.query(itemQuery, [
           transactionId,
           item.product_id,
           item.quantity,
           item.price,
-          item.price * item.quantity,
         ]);
         const stockQuery = `UPDATE products SET stock = stock - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`;
         await client.query(stockQuery, [item.quantity, item.product_id]);
@@ -334,7 +429,9 @@ const cashierService = {
 
   async getAllTransactions() {
     const query = `
-      SELECT t.id, t.transaction_date, t.user_id, u.name as kasir_name, t.total_amount 
+      SELECT t.id, t.transaction_date, t.user_id, u.name as kasir_name, 
+             t.total_amount, t.cash_amount,
+             (t.cash_amount - t.total_amount) as change_amount
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
       ORDER BY t.transaction_date DESC`;
@@ -345,7 +442,8 @@ const cashierService = {
   async getTransactionById(id) {
     // Get transaction header
     const transQuery = `
-      SELECT t.id, t.transaction_date, t.total_amount, t.cash_amount, t.change_amount,
+      SELECT t.id, t.transaction_date, t.total_amount, t.cash_amount,
+             (t.cash_amount - t.total_amount) as change_amount,
              u.name as kasir_name, u.username as kasir_username
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
@@ -360,10 +458,13 @@ const cashierService = {
 
     // Get transaction items
     const itemsQuery = `
-      SELECT ti.quantity, ti.price_at_transaction, ti.subtotal,
-             p.name as product_name, p.code as product_code, p.type as product_type
+      SELECT ti.quantity, ti.price_at_transaction,
+             (ti.quantity * ti.price_at_transaction) as subtotal,
+             p.name as product_name, p.code as product_code,
+             c.name as product_type
       FROM transaction_items ti
       LEFT JOIN products p ON ti.product_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
       WHERE ti.transaction_id = $1`;
     const itemsResult = await pool.query(itemsQuery, [id]);
 
